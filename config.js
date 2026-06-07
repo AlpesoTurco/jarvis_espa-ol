@@ -39,11 +39,12 @@ const config = {
         url: requireEnv('HA_URL'),
         token: optionalEnv('HA_TOKEN') || requireEnv('TOKEN')
     },
-    ollama: {
-        url: requireEnv('OLLAMA_URL'),
-        model: requireEnv('OLLAMA_MODEL'),
-        timeout: requireNumberEnv('OLLAMA_TIMEOUT'),
-        toolTimeout: requireNumberEnv('OLLAMA_TOOL_TIMEOUT')
+    groq: {
+        apiKey: optionalEnv('GROQ_API_KEY'),
+        url: requireEnv('GROQ_URL').replace(/\/+$/, ''),
+        model: requireEnv('GROQ_MODEL'),
+        timeout: requireNumberEnv('GROQ_TIMEOUT'),
+        toolTimeout: requireNumberEnv('GROQ_TOOL_TIMEOUT')
     },
     http: {
         homeAssistantTimeout: requireNumberEnv('HA_TIMEOUT')

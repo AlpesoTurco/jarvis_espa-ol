@@ -1,4 +1,4 @@
-const { ask, chat } = require('./ollama');
+const { ask, chat } = require('./groq');
 const { callService } = require('./homeassistant');
 const { config } = require('./config');
 const { findDevice, listDevices } = require('./deviceManager');
@@ -121,7 +121,7 @@ const tools = [
     }
 ];
 
-const TOOL_TIMEOUT = config.ollama.toolTimeout;
+const TOOL_TIMEOUT = config.groq.toolTimeout;
 
 function buildSystemPrompt() {
     const catalog = listDevices()
