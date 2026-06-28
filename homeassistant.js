@@ -41,13 +41,11 @@ async function getEntities() {
     }
 }
 
-async function callService(domain, service, entityId) {
+async function callService(domain, service, payload = {}) {
     try {
         await axios.post(
             buildUrl(`/api/services/${domain}/${service}`),
-            {
-                entity_id: entityId
-            },
+            payload,
             {
                 headers,
                 timeout: HA_TIMEOUT
@@ -58,7 +56,36 @@ async function callService(domain, service, entityId) {
     }
 }
 
+async function controlEntity(domain, service, entityId) {
+    return callService(domain, service, {
+        entity_id: entityId
+    });
+}
+
+async function sendNotification(message, title = 'Jarvis', data) {
+    const service = config.homeAssistant.notifyService;
+
+    if (!message) {
+        return { ok: false, error: 'Falta el mensaje de la notificacion.' };
+    }
+
+    await callService('notify', service, {
+        title,
+        message,
+        ...(data ? { data } : {})
+    });
+
+    return {
+        ok: true,
+        service,
+        title,
+        message
+    };
+}
+
 module.exports = {
     getEntities,
-    callService
+    callService,
+    controlEntity,
+    sendNotification
 };

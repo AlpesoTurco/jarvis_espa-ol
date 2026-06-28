@@ -5,6 +5,7 @@ const {
     apiKey: GROQ_API_KEY,
     url: GROQ_URL,
     model: GROQ_MODEL,
+    transcriptionModel: GROQ_TRANSCRIPTION_MODEL,
     timeout: GROQ_TIMEOUT
 } = config.groq;
 
@@ -14,7 +15,7 @@ function requireApiKey() {
     }
 }
 
-function explainGroqError(error) {
+function explainGroqError(error, model = GROQ_MODEL) {
     const status = error.response?.status;
     const apiMessage = error.response?.data?.error?.message;
 
@@ -27,7 +28,7 @@ function explainGroqError(error) {
     }
 
     if (status === 404) {
-        return `Groq no encontro el modelo "${GROQ_MODEL}". Revisa GROQ_MODEL en .env.`;
+        return `Groq no encontro el modelo "${model}". Revisa el modelo configurado en .env.`;
     }
 
     if (error.code === 'ECONNABORTED') {
@@ -93,7 +94,71 @@ async function chat(messages, tools = [], timeout = GROQ_TIMEOUT) {
     return createCompletion(messages, tools, timeout);
 }
 
+function getAudioExtension(mimeType = '') {
+    if (mimeType.includes('mp4')) return 'mp4';
+    if (mimeType.includes('mpeg')) return 'mp3';
+    if (mimeType.includes('wav')) return 'wav';
+    if (mimeType.includes('ogg')) return 'ogg';
+    return 'webm';
+}
+
+async function transcribeAudio(buffer, mimeType = 'audio/webm') {
+    requireApiKey();
+
+    if (!buffer?.length) {
+        throw new Error('No recibi audio para transcribir.');
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), GROQ_TIMEOUT);
+    const form = new FormData();
+    const blob = new Blob([buffer], { type: mimeType });
+
+    form.append('file', blob, `jarvis-audio.${getAudioExtension(mimeType)}`);
+    form.append('model', GROQ_TRANSCRIPTION_MODEL);
+    form.append('language', 'es');
+    form.append('response_format', 'json');
+
+    try {
+        const response = await fetch(`${GROQ_URL}/audio/transcriptions`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${GROQ_API_KEY}`
+            },
+            body: form,
+            signal: controller.signal
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw {
+                response: {
+                    status: response.status,
+                    data
+                }
+            };
+        }
+
+        const text = data.text?.trim();
+
+        if (!text) {
+            throw new Error('Groq no devolvio texto para el audio.');
+        }
+
+        return text;
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('Groq tardo demasiado en transcribir el audio.');
+        }
+
+        throw new Error(explainGroqError(error, GROQ_TRANSCRIPTION_MODEL));
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
 module.exports = {
     ask,
-    chat
+    chat,
+    transcribeAudio
 };

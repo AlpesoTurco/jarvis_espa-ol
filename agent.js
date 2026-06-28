@@ -1,5 +1,5 @@
 const { ask, chat } = require('./groq');
-const { callService } = require('./homeassistant');
+const { controlEntity, sendNotification } = require('./homeassistant');
 const { config } = require('./config');
 const { findDevice, listDevices } = require('./deviceManager');
 
@@ -118,6 +118,27 @@ const tools = [
                 }
             }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'send_notification',
+            description: 'Envia una notificacion push al celular configurado en Home Assistant.',
+            parameters: {
+                type: 'object',
+                required: ['message'],
+                properties: {
+                    message: {
+                        type: 'string',
+                        description: 'Texto de la notificacion que recibira el celular.'
+                    },
+                    title: {
+                        type: 'string',
+                        description: 'Titulo corto de la notificacion. Usa Jarvis si el usuario no pide otro titulo.'
+                    }
+                }
+            }
+        }
     }
 ];
 
@@ -137,6 +158,7 @@ function buildSystemPrompt() {
         'Usa get_date solo si el usuario pregunta por la fecha actual.',
         'Usa control_device si el usuario pide encender, apagar o alternar un dispositivo.',
         'Usa get_device_state solo si la pregunta tiene relacion con un dispositivo, sensor o entidad de Home Assistant.',
+        'Usa send_notification si el usuario pide enviar, mandar o avisar algo al celular.',
         'Usa list_entities si el usuario pide ver, listar o buscar entidades/dispositivos.',
         'Usa get_server_status si el usuario pregunta si Jarvis, el servidor o la conexion estan funcionando.',
         'No uses get_device_state para matematicas, definiciones, explicaciones o conversacion general.',
@@ -175,7 +197,7 @@ async function controlDevice(args) {
         }
 
         for (const device of devices) {
-            await callService(device.domain, service, device.id);
+            await controlEntity(device.domain, service, device.id);
         }
 
         return {
@@ -201,7 +223,7 @@ async function controlDevice(args) {
         return { ok: false, error: `${device.id} es de tipo ${device.domain} y no admite ${action}` };
     }
 
-    await callService(device.domain, service, device.id);
+    await controlEntity(device.domain, service, device.id);
 
     return {
         ok: true,
@@ -275,9 +297,13 @@ async function getServerStatus() {
     };
 }
 
+async function notifyPhone(args) {
+    return sendNotification(args.message, args.title || 'Jarvis');
+}
+
 async function executeToolCall(call) {
     const name = call.function.name;
-    const args = parseArguments(call.function.arguments);
+    const args = parseArguments(call.function.arguments) || {};
 
     if (name === 'control_device') {
         return controlDevice(args);
@@ -303,6 +329,10 @@ async function executeToolCall(call) {
         return getServerStatus();
     }
 
+    if (name === 'send_notification') {
+        return notifyPhone(args);
+    }
+
     return { ok: false, error: `Herramienta desconocida: ${name}` };
 }
 
@@ -319,7 +349,7 @@ function parseArguments(argumentsValue) {
         }
     }
 
-    return argumentsValue;
+    return typeof argumentsValue === 'object' ? argumentsValue : {};
 }
 
 async function runAgent(userText) {
@@ -450,6 +480,14 @@ function buildFastPlan(userText) {
         };
     }
 
+    if (action === 'send_notification') {
+        return {
+            action,
+            title: 'Jarvis',
+            message: extractNotificationMessage(userText)
+        };
+    }
+
     const domain = detectDomain(text);
     const all = detectAll(text);
     const target = extractTarget(text);
@@ -493,6 +531,10 @@ function detectAction(text) {
         return 'get_server_status';
     }
 
+    if (/\b(notifica|notificacion|avisame|avisa|enviame|mandame|manda|envia|mensaje)\b/.test(text) && /\b(celular|telefono|movil|push)\b/.test(text)) {
+        return 'send_notification';
+    }
+
     if (/\b(apaga|apagar|desactiva|desactivar)\b/.test(text)) {
         return 'turn_off';
     }
@@ -514,6 +556,24 @@ function detectAction(text) {
     }
 
     return null;
+}
+
+function extractNotificationMessage(text) {
+    const cleaned = String(text || '')
+        .replace(/[?¿!¡]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const quoteMatch = cleaned.match(/["']([^"']+)["']/);
+
+    if (quoteMatch) {
+        return quoteMatch[1].trim();
+    }
+
+    return cleaned
+        .replace(/\b(notifica|notificacion|avisame|avisa|enviame|mandame|manda|envia|enviar|mandar|mensaje)\b/gi, ' ')
+        .replace(/\b(al|a mi|mi|el|la|los|las|por|favor|celular|telefono|movil|push|que|diciendo|decir)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || 'Mensaje de prueba de Jarvis.';
 }
 
 function detectDomain(text) {
@@ -564,6 +624,7 @@ async function runJsonFallback(userText, reason) {
         'Formato para todas las luces: {"action":"turn_on","domain":"light","all":true}',
         'Formato para control: {"action":"turn_off","target":"sala","domain":"light"}',
         'Formato para estado: {"action":"get_state","target":"sala"}',
+        'Formato para notificacion: {"action":"send_notification","title":"Jarvis","message":"Mensaje para el celular"}',
         '',
         `Usuario: ${userText}`
     ].join('\n');
@@ -597,7 +658,9 @@ async function runJsonFallback(userText, reason) {
         action: plan.action,
         target: plan.target,
         domain: plan.domain,
-        all: plan.all
+        all: plan.all,
+        title: plan.title,
+        message: plan.message
     };
 
     if (toolName !== 'control_device') {
@@ -686,6 +749,10 @@ function buildNaturalMessage(agentResult) {
         return `Listo, ${actionText} ${result.name}.`;
     }
 
+    if (first.tool === 'send_notification') {
+        return `Listo, envie la notificacion al celular.`;
+    }
+
     return 'Listo.';
 }
 
@@ -694,6 +761,7 @@ function getToolNameFromAction(action) {
     if (action === 'get_date') return 'get_date';
     if (action === 'list_entities') return 'list_entities';
     if (action === 'get_server_status') return 'get_server_status';
+    if (action === 'send_notification') return 'send_notification';
     if (action === 'get_state') return 'get_device_state';
     if (ACTION_SERVICES[action]) return 'control_device';
     return null;
