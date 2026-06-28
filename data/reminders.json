@@ -1,0 +1,65 @@
+[
+  {
+    "id": "1782671560618-g48ocef",
+    "title": "Prueba",
+    "message": "Prueba de recordatorio desde jarvis",
+    "datetime": "2026-06-28T18:33:40.617Z",
+    "created_at": "2026-06-28T18:32:40.618Z",
+    "fired": true,
+    "meta": {}
+  },
+  {
+    "id": "1782673414399-sg87ey4",
+    "title": "Recordatorio",
+    "message": "dame",
+    "datetime": "2026-06-28T19:03:54.398Z",
+    "created_at": "2026-06-28T19:03:34.399Z",
+    "fired": true,
+    "meta": {}
+  },
+  {
+    "id": "1782673492236-wpj3p1k",
+    "title": "Recordatorio",
+    "message": "dame llamar a mamá",
+    "datetime": "2026-06-28T19:05:02.236Z",
+    "created_at": "2026-06-28T19:04:52.236Z",
+    "fired": true,
+    "meta": {}
+  },
+  {
+    "id": "1782674079671-cpc3xc3",
+    "title": "Recordatorio",
+    "message": "Recuerda llamar a tu mamá",
+    "datetime": "2026-06-29T16:00:00.000Z",
+    "created_at": "2026-06-28T19:14:39.671Z",
+    "fired": false,
+    "meta": {
+      "source": "ai",
+      "original_text": "Recuerdame llamar a mi mamá en 10 segundps"
+    }
+  },
+  {
+    "id": "1782674481842-kzqr741",
+    "title": "Recordatorio",
+    "message": "Recuerda hablarle a tu mamá",
+    "datetime": "2026-06-28T19:21:31.842Z",
+    "created_at": "2026-06-28T19:21:21.842Z",
+    "fired": true,
+    "meta": {
+      "source": "ai",
+      "original_text": "Dame un recordatorio en 10 segundos para hablarle a mi mamá"
+    }
+  },
+  {
+    "id": "1782674789180-igbddhu",
+    "title": "Recordatorio",
+    "message": "Recuerda hablarle a tu mama",
+    "datetime": "2026-06-28T19:26:39.179Z",
+    "created_at": "2026-06-28T19:26:29.180Z",
+    "fired": true,
+    "meta": {
+      "source": "ai",
+      "original_text": "Recuerdame hablarle a mi mama en 10 segundos"
+    }
+  }
+]
